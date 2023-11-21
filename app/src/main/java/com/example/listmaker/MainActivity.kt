@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -25,12 +26,13 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
+                    val listOfItems = remember { mutableListOf<listOfItems>() }
                     NavHost(navController = navController, startDestination = "HOME") {
                         composable("HOME") {
                             HomeUI(navController)
                         }
                         composable("NEW-LIST"){
-                            MakeNewListUI(navController)
+                            MakeNewListUI(navController,listOfItems)
                         }
                     }
                 }
