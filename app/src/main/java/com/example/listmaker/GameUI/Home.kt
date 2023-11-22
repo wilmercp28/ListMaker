@@ -1,4 +1,4 @@
-package com.example.listmaker.ui.theme.GameUI
+package com.example.listmaker.GameUI
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
