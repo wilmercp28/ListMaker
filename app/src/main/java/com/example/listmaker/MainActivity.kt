@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -29,17 +31,21 @@ class MainActivity : ComponentActivity() {
                 ) {
 
                     val navController = rememberNavController()
-                    val listOfItems = remember { mutableStateListOf<ListOfItems>() }
+                    val listOfItems = remember{ mutableStateListOf<ListOfItems>() }
+                    val unitTypes = listOf("Unit","LBS","OZ","KG")
+                    val selectedIndex = rememberSaveable { mutableStateOf(0) }
 
                     NavHost(navController = navController, startDestination = "HOME") {
 
                         composable("HOME") {
-                            HomeUI(navController)
+                            HomeUI(navController,listOfItems,selectedIndex)
                         }
 
                         composable("NEW-LIST"){
-                            listOfItems.add(ListOfItems("New List", emptyList()))
-                            ModifiesList(navController,listOfItems,listOfItems.lastIndex)
+                            ModifiesList(navController,listOfItems,listOfItems.lastIndex,unitTypes)
+                        }
+                        composable("MODIFY-LIST"){
+                            ModifiesList(navController,listOfItems,selectedIndex.value,unitTypes)
                         }
                     }
                 }

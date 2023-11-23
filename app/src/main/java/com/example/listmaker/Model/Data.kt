@@ -11,6 +11,7 @@ data class ListOfItems(
 
 
 data class Item(
+    var unit: String,
     var quantity : String,
-    val item : String
+    var item : String,
 )
