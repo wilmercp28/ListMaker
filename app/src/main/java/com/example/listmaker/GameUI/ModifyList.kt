@@ -1,6 +1,6 @@
 package com.example.listmaker.GameUI
 
-import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,35 +36,45 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.navigation.NavHostController
-import com.example.listmaker.Model.Item
-import com.example.listmaker.Model.ListOfItems
+import com.example.listmaker.Data.Item
+import com.example.listmaker.Data.ListOfItems
+import com.example.listmaker.Data.saveDataList
+import kotlinx.coroutines.launch
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ModifiesList(
     navController: NavHostController,
     listOfItems: MutableList<ListOfItems>,
     index: Int,
-    unitTypes: List<String>
+    unitTypes: List<String>,
+    dataStore: DataStore<Preferences>
 ) {
+    val coroutine = rememberCoroutineScope()
     var mutableListOfItems by rememberSaveable {
         mutableStateOf(listOfItems[index].items)
     }
     var mutableNameOfList by rememberSaveable {
         mutableStateOf(listOfItems[index].name)
     }
+    var saving by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -82,19 +93,17 @@ fun ModifiesList(
                         )
                     }
                 },
-                actions = {
-                    TextButton(onClick = {
-                        listOfItems[index] = ListOfItems(mutableNameOfList, mutableListOfItems)
-                        navController.navigate("HOME")
-                    }) {
-                        Text(text = "Save")
-                    }
-                },
                 navigationIcon = {
                     IconButton(onClick = {
-                        listOfItems.removeAt(index)
-                        Log.d("List", listOfItems.toString())
-                        navController.navigate("HOME")
+                        listOfItems[index] = ListOfItems(mutableNameOfList, mutableListOfItems)
+                        coroutine.launch {
+                            saveDataList(
+                                "List",
+                                listOfItems as SnapshotStateList<ListOfItems>,
+                                dataStore
+                            )
+                            navController.navigate("HOME")
+                        }
                     }
                     ) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Cancel")
@@ -105,14 +114,13 @@ fun ModifiesList(
     ) { scaffoldPadding ->
         Column(
             modifier = Modifier
-                .padding(scaffoldPadding)
                 .fillMaxSize()
+                .padding(scaffoldPadding)
         ) {
             Row(
                 modifier = Modifier
                     .padding(10.dp)
                     .fillMaxWidth()
-                    .height(50.dp)
                     .background(MaterialTheme.colorScheme.primary),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -125,15 +133,35 @@ fun ModifiesList(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(10.dp)
             ) {
                 if (mutableListOfItems.isNotEmpty()) {
-                    items(mutableListOfItems) { item ->
-                        ListItem(item, unitTypes){
-                            quantity, Description, unit ->
-                            item.unit = unit
-                            item.quantity = quantity
-                            item.item = Description
+                    items(mutableListOfItems, key = {it.id}) { item ->
+                        Column(
+                            modifier = Modifier
+                                .padding(5.dp)
+                                .height(50.dp)
+                        ) {
+                            ListItem(item, unitTypes,
+                                onChange = { quantity, Description, unit ->
+                                    item.unit = unit
+                                    item.quantity = quantity
+                                    item.item = Description
+                                    if (!saving) {
+                                        saving = true
+                                        coroutine.launch {
+                                            saveDataList(
+                                                "List",
+                                                listOfItems as SnapshotStateList<ListOfItems>,
+                                                dataStore
+                                            )
+                                            saving = false
+                                        }
+                                    }
+                                },
+                                onRemove = {
+                                    mutableListOfItems = mutableListOfItems - item
+                                }
+                            )
                         }
                     }
                 }
@@ -144,8 +172,7 @@ fun ModifiesList(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         IconButton(onClick = {
-                            mutableListOfItems += Item("Units", "", "")
-                            Log.d("List Of Items", listOfItems.toString())
+                            mutableListOfItems = mutableListOfItems + Item("Units", "", "")
                         }) {
                             Icon(Icons.Default.Add, contentDescription = "Add New Item")
                         }
@@ -160,7 +187,8 @@ fun ModifiesList(
 @Composable
 fun ListItem(
     item: Item, unitTypes: List<String>,
-    onChange: (quantity: String, Description: String,unit: String) -> Unit
+    onChange: (quantity: String, Description: String, unit: String) -> Unit,
+    onRemove: () -> Unit
 ) {
     val quantity = rememberSaveable { mutableStateOf(item.quantity) }
     val itemDescription = rememberSaveable { mutableStateOf(item.item) }
@@ -172,9 +200,10 @@ fun ListItem(
         horizontalArrangement = Arrangement.Center
     ) {
         Spacer(modifier = Modifier.weight(0.5f))
-        QuantityTextField(quantity, itemDescription, unitTypes, itemUnit) {
-            onChange(quantity.value,itemDescription.value,itemUnit.value)
-        }
+        QuantityTextField(quantity, itemDescription, unitTypes, itemUnit,
+            onChange = { onChange(quantity.value, itemDescription.value, itemUnit.value) },
+            onRemove = { onRemove() }
+        )
         Spacer(modifier = Modifier.weight(1.5f))
         Text(text = item.item)
         Spacer(modifier = Modifier.weight(2f))
@@ -188,10 +217,11 @@ fun QuantityTextField(
     itemDescription: MutableState<String>,
     unitTypes: List<String>,
     itemUnit: MutableState<String>,
-    onChange: () -> Unit
+    onChange: () -> Unit,
+    onRemove: () -> Unit
 ) {
     val textStyle = androidx.compose.ui.text.TextStyle(
-        fontSize = 17.sp,
+        fontSize = 16.sp,
         fontWeight = FontWeight.Bold
     )
     Row(
@@ -203,14 +233,13 @@ fun QuantityTextField(
         UnitDropDownMenu(unitTypes, itemUnit)
         OutlinedTextField(
             modifier = Modifier
-                .weight(3f)
-                .padding(5.dp),
+                .weight(3f),
             value = quantity.value,
             onValueChange = { newValue ->
                 onChange()
                 val dotCount = newValue.count { it == '.' }
                 val size = newValue.length
-                if (size <= 5) {
+                if (size <= 6) {
                     if (dotCount <= 1) {
                         quantity.value = newValue
                     }
@@ -230,7 +259,7 @@ fun QuantityTextField(
             onValueChange = { newValue ->
                 onChange()
                 val size = newValue.length
-                if (size <= 25) {
+                if (size <= 22) {
                     itemDescription.value = newValue
                 }
             },
@@ -241,6 +270,9 @@ fun QuantityTextField(
             maxLines = 1,
             textStyle = textStyle
         )
+        IconButton(onClick = { onRemove() }, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Default.Delete, contentDescription = "remove item")
+        }
     }
 }
 

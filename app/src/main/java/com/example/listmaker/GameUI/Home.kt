@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -40,16 +41,22 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.navigation.NavHostController
-import com.example.listmaker.Model.ListOfItems
+import com.example.listmaker.Data.ListOfItems
+import com.example.listmaker.Data.saveDataList
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeUI(
     navController: NavHostController,
     listOfItems: SnapshotStateList<ListOfItems>,
-    selectedIndex: MutableState<Int>
+    selectedIndex: MutableState<Int>,
+    dataStore: DataStore<Preferences>
 ) {
+    val coroutine = rememberCoroutineScope()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -64,7 +71,11 @@ fun HomeUI(
                 Icons.Default.Add,
                 onClick = {
                     listOfItems.add(ListOfItems("New List", emptyList()))
-                    navController.navigate("NEW-LIST")
+                    coroutine.launch {
+                        saveDataList("List",listOfItems,dataStore)
+                        navController.navigate("NEW-LIST")
+                    }
+
                 }
             )
         }

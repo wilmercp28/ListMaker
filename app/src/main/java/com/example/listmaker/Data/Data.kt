@@ -1,7 +1,6 @@
-package com.example.listmaker.Model
+package com.example.listmaker.Data
 
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.SaverScope
+import java.util.UUID
 
 
 data class ListOfItems(
@@ -14,4 +13,5 @@ data class Item(
     var unit: String,
     var quantity : String,
     var item : String,
+    val id: String = UUID.randomUUID().toString(),
 )
