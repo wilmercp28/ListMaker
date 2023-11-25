@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -34,7 +35,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -46,15 +46,17 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.navigation.NavHostController
 import com.example.listmaker.Data.ListOfItems
 import com.example.listmaker.Data.saveDataList
+import com.example.listmaker.Data.saveDataSettings
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeUI(
     navController: NavHostController,
-    listOfItems: SnapshotStateList<ListOfItems>,
+    listOfItems: MutableList<ListOfItems>,
     selectedIndex: MutableState<Int>,
-    dataStore: DataStore<Preferences>
+    dataStore: DataStore<Preferences>,
+    shoppingMode: MutableState<Boolean>
 ) {
     val coroutine = rememberCoroutineScope()
     Scaffold(
@@ -72,7 +74,7 @@ fun HomeUI(
                 onClick = {
                     listOfItems.add(ListOfItems("New List", emptyList()))
                     coroutine.launch {
-                        saveDataList("List",listOfItems,dataStore)
+                        saveDataList("List", listOfItems, dataStore)
                         navController.navigate("NEW-LIST")
                     }
 
@@ -95,7 +97,7 @@ fun HomeUI(
                         modifier = Modifier
                             .animateItemPlacement()
                     ) {
-                        ItemShow(item, listOfItems,selectedIndex,navController)
+                        ItemShow(item, listOfItems, selectedIndex, navController, dataStore,shoppingMode)
                     }
                 }
             }
@@ -107,13 +109,15 @@ fun HomeUI(
 @Composable
 fun ItemShow(
     item: ListOfItems,
-    listOfItems: SnapshotStateList<ListOfItems>,
+    listOfItems: MutableList<ListOfItems>,
     selectedIndex: MutableState<Int>,
-    navController: NavHostController
+    navController: NavHostController,
+    dataStore: DataStore<Preferences>,
+    shoppingMode: MutableState<Boolean>
 ) {
     var expand by rememberSaveable { mutableStateOf(false) }
     val numberOfItems = item.items.size
-
+    val coroutine = rememberCoroutineScope()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -138,11 +142,25 @@ fun ItemShow(
                     Icon(Icons.Default.Delete, contentDescription = "Remove List")
                 }
                 IconButton(onClick = {
-                    selectedIndex.value = listOfItems.indexOf(item)
-                    navController.navigate("MODIFY-LIST")
+                    coroutine.launch {
+                        selectedIndex.value = listOfItems.indexOf(item)
+                        saveDataSettings("SELECTED-INDEX", selectedIndex.value, dataStore)
+                        navController.navigate("MODIFY-LIST")
+                    }
 
                 }) {
                     Icon(Icons.Default.MailOutline, contentDescription = "Modify List")
+                }
+                IconButton(onClick = {
+                    coroutine.launch {
+                        selectedIndex.value = listOfItems.indexOf(item)
+                        saveDataSettings("SELECTED-INDEX", selectedIndex.value, dataStore)
+                        saveDataSettings("SHOPPING-MODE",shoppingMode.value,dataStore)
+                        navController.navigate("SHOPPING-MODE")
+                    }
+
+                }) {
+                    Icon(Icons.Default.ShoppingCart, contentDescription = "Shopping mode")
                 }
             }
         }

@@ -22,7 +22,7 @@ val gson = Gson()
 
 suspend fun saveDataList(
     key: String,
-    listOfItems: SnapshotStateList<ListOfItems>,
+    listOfItems: MutableList<ListOfItems>,
     dataStore: DataStore<Preferences>
 ) {
     val jsonString = gson.toJson(listOfItems)
@@ -31,7 +31,6 @@ suspend fun saveDataList(
         preferences[preferenceKey] = jsonString
     }
 }
-
 suspend fun loadDataList(
     key: String,
     dataStore: DataStore<Preferences>
@@ -46,6 +45,35 @@ suspend fun loadDataList(
         )
 
         loadedData ?: mutableStateListOf()
+    }.first()
+}
+
+suspend inline fun <reified T> saveDataSettings(
+    key: String,
+    dataToSave: T,
+    dataStore: DataStore<Preferences>
+) {
+    val gson = Gson()
+    val jsonString = gson.toJson(dataToSave)
+    val preferenceKey = stringPreferencesKey(key)
+    dataStore.edit { preferences ->
+        preferences[preferenceKey] = jsonString
+    }
+}
+suspend inline fun <reified T> loadDataSettings(
+    key: String,
+    dataStore: DataStore<Preferences>,
+    defaultData: T
+): T {
+    val preferenceKey = stringPreferencesKey(key)
+
+    return dataStore.data.map { preferences ->
+        val jsonString = preferences[preferenceKey]
+        val loadedData = gson.fromJson<T>(
+            jsonString,
+            object : TypeToken<T>() {}.type
+        )
+        loadedData ?: defaultData
     }.first()
 }
 

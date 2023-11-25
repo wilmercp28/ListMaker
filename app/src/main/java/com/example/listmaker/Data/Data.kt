@@ -14,4 +14,5 @@ data class Item(
     var quantity : String,
     var item : String,
     val id: String = UUID.randomUUID().toString(),
+    var checked: Boolean = false
 )
