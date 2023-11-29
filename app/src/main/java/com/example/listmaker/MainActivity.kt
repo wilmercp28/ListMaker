@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     var listOfItems = remember { mutableStateListOf<ListOfItems>() }
-                    val unitTypes = listOf("Unit", "LBS", "OZ", "KG")
+                    val unitTypes = listOf("Unit", "LBS", "OZ", "KG", "Grams", "Liters", "Gallons", "Pieces", "Pounds", "Dozen", "Quart", "Pint", "Cup")
                     val selectedIndex = rememberSaveable { mutableIntStateOf(0) }
                     val shoppingMode = rememberSaveable { mutableStateOf(false) }
                     val navController = rememberNavController()

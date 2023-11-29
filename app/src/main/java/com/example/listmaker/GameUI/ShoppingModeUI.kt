@@ -1,11 +1,11 @@
 package com.example.listmaker.GameUI
 
+import android.util.Log
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -27,14 +28,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -48,6 +48,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.navigation.NavHostController
 import com.example.listmaker.Data.Item
 import com.example.listmaker.Data.ListOfItems
+import com.example.listmaker.Data.saveDataList
 import com.example.listmaker.Data.saveDataSettings
 import kotlinx.coroutines.launch
 
@@ -60,15 +61,24 @@ fun ShoppingMode(
     dataStore: DataStore<Preferences>,
     shoppingMode: MutableState<Boolean>
 ) {
+    val lazyColumnState = rememberLazyListState()
     val coroutine = rememberCoroutineScope()
-
-    var checkedItems by remember { mutableStateOf(setOf<Item>()) }
-
-    val sortedItems = remember(listOfItems, checkedItems) {
-        val uncheckedItems = listOfItems[selectedIndex.value].items.filter { !checkedItems.contains(it) }
-        val checkedItems = listOfItems[selectedIndex.value].items.filter { checkedItems.contains(it) }
-        (uncheckedItems + checkedItems.sortedBy { it.item }).toList()
+    var checkedItems by remember {
+        mutableStateOf(
+            listOfItems[selectedIndex.intValue].items
+                .filter { it.checked }
+                .toSet()
+        )
     }
+    val sortedItems = remember(listOfItems, checkedItems) {
+        val uncheckedItemsList =
+            listOfItems[selectedIndex.intValue].items.filter { !checkedItems.contains(it) }
+        val checkedItemsList =
+            listOfItems[selectedIndex.intValue].items.filter { checkedItems.contains(it) }
+        (uncheckedItemsList.sortedBy { it.item } + checkedItemsList.sortedBy { it.item }).toList()
+    }
+
+
 
     Scaffold(
         topBar = {
@@ -109,13 +119,20 @@ fun ShoppingMode(
         ) {
 
             LazyColumn(
+                state = lazyColumnState,
                 content = {
-                    items(sortedItems, key = {it.id}){ item ->
+                    items(sortedItems, key = { it.id }) { item ->
                         Box(
                             modifier = Modifier
                                 .animateItemPlacement()
                         ) {
-                            ShoppingModeItem(item, checkedItems.contains(item)) {
+                            ShoppingModeItem(
+                                item,
+                                checkedItems.contains(item),
+                                listOfItems,
+                                selectedIndex,
+                                dataStore
+                            ) {
                                 checkedItems = if (it) {
                                     checkedItems + item
                                 } else {
@@ -132,18 +149,39 @@ fun ShoppingMode(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ShoppingModeItem(item: Item, isChecked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+fun ShoppingModeItem(
+    item: Item, isChecked: Boolean,
+    listOfItems: SnapshotStateList<ListOfItems>,
+    selectedIndex: MutableIntState,
+    dataStore: DataStore<Preferences>,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val itemIndex = listOfItems[selectedIndex.intValue].items.indexOf(item)
     val backgroundColor by animateColorAsState(
         targetValue = if (isChecked) Color.Green else Color.Red,
-        animationSpec = tween(durationMillis = 1000)
+        animationSpec = tween(durationMillis = 300)
     )
+
+    LaunchedEffect(item) {
+        saveDataList("List", listOfItems, dataStore)
+    }
 
     AnimatedContent(targetState = isChecked) { check ->
         Column(
             modifier = Modifier
                 .combinedClickable(
-                    onClick = { onCheckedChange(true)},
-                    onLongClick = { onCheckedChange(false)}
+                    onClick = {
+                        onCheckedChange(true)
+                        item.checked = true
+                        Log.d(
+                            "State",
+                            listOfItems[selectedIndex.intValue].items[itemIndex].checked.toString()
+                        )
+                    },
+                    onLongClick = {
+                        onCheckedChange(false)
+                        item.checked = false
+                    }
                 )
                 .fillMaxWidth()
                 .padding(20.dp),

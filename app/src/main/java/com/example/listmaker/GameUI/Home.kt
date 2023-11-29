@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -48,6 +49,7 @@ import com.example.listmaker.Data.ListOfItems
 import com.example.listmaker.Data.saveDataList
 import com.example.listmaker.Data.saveDataSettings
 import com.example.listmaker.Model.addNewList
+import com.example.listmaker.test.generateExampleItemsList
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -64,7 +66,12 @@ fun HomeUI(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(text = "List Maker")
+                    Row() {
+                        Text(text = "List Maker")
+                        Button(onClick = {listOfItems += addNewList(listOfItems,isTest = true) }) {
+                            Text(text = "Generate Test Lists")
+                        }
+                    }
                 }
             )
         },
