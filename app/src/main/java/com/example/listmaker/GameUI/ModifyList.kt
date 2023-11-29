@@ -1,10 +1,10 @@
 package com.example.listmaker.GameUI
 
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -42,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,14 +54,16 @@ import androidx.navigation.NavHostController
 import com.example.listmaker.Data.Item
 import com.example.listmaker.Data.ListOfItems
 import com.example.listmaker.Data.saveDataList
+import com.example.listmaker.Model.nameExistFromObject
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ModifiesList(
     navController: NavHostController,
-    listOfItems: MutableList<ListOfItems>,
+    listOfItems: SnapshotStateList<ListOfItems>,
     index: Int,
     unitTypes: List<String>,
     dataStore: DataStore<Preferences>
@@ -75,106 +76,154 @@ fun ModifiesList(
         mutableStateOf(listOfItems[index].name)
     }
     var saving by rememberSaveable { mutableStateOf(false) }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center)
-                    {
-                        val textStyle = androidx.compose.ui.text.TextStyle(
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                        OutlinedTextField(
-                            value = mutableNameOfList,
-                            onValueChange = { mutableNameOfList = it },
-                            textStyle = textStyle
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        listOfItems[index] = ListOfItems(mutableNameOfList, mutableListOfItems)
-                        coroutine.launch {
-                            saveDataList(
-                                "List",
-                                listOfItems as SnapshotStateList<ListOfItems>,
-                                dataStore
+    Column(
+        modifier = Modifier
+            .padding(5.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Scaffold(
+            topBar = {
+                Spacer(modifier = Modifier.size(50.dp))
+                TopAppBar(
+                    title = {
+
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            listOfItems[index] = ListOfItems(
+                                mutableNameOfList, mutableListOfItems,
+                                LocalDate.now()
                             )
-                            navController.navigate("HOME")
+                            coroutine.launch {
+                                if (!nameExistFromObject(
+                                        listOfItems,
+                                        listOfItems[index],
+                                        mutableNameOfList
+                                    )
+                                ) {
+                                    saveDataList(
+                                        "List",
+                                        listOfItems,
+                                        dataStore
+                                    )
+                                    navController.navigate("HOME")
+                                }
+                            }
+                        }
+                        ) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Cancel")
                         }
                     }
-                    ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Cancel")
-                    }
-                }
-            )
-        }
-    ) { scaffoldPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(scaffoldPadding)
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(10.dp)
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Spacer(modifier = Modifier.weight(0.5f))
-                Text(text = "Quantity")
-                Spacer(modifier = Modifier.weight(1.5f))
-                Text(text = "Item")
-                Spacer(modifier = Modifier.weight(2f))
+                )
             }
-            LazyColumn(
+        )
+        { scaffoldPadding ->
+            Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .padding(scaffoldPadding)
             ) {
-                if (mutableListOfItems.isNotEmpty()) {
-                    items(mutableListOfItems, key = {it.id}) { item ->
+                val textStyle = androidx.compose.ui.text.TextStyle(
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                OutlinedTextField(
+                    value = mutableNameOfList,
+                    onValueChange = { mutableNameOfList = it },
+                    textStyle = textStyle,
+                    isError = nameExistFromObject(
+                        listOfItems,
+                        listOfItems[index],
+                        mutableNameOfList
+                    ),
+                    maxLines = 1,
+                    label = {
+                        Text(
+                            text = if (nameExistFromObject(
+                                    listOfItems,
+                                    listOfItems[index],
+                                    mutableNameOfList
+                                )
+                            ) "Name already exist" else "List name"
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                )
+                Log.d(
+                    "Is Error",
+                    nameExistFromObject(
+                        listOfItems,
+                        listOfItems[index],
+                        mutableNameOfList
+                    ).toString()
+                )
+                Row(
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primary),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Spacer(modifier = Modifier.weight(0.5f))
+                    Text(text = "Quantity")
+                    Spacer(modifier = Modifier.weight(1.5f))
+                    Text(text = "Item")
+                    Spacer(modifier = Modifier.weight(2f))
+                }
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+                    if (mutableListOfItems.isNotEmpty()) {
+                        items(mutableListOfItems.reversed(), key = { it.id }) { item ->
+                            Column(
+                                modifier = Modifier
+                                    .padding(5.dp)
+                                    .height(50.dp)
+                            ) {
+                                ListItem(item, unitTypes,
+                                    onChange = { quantity, Description, unit ->
+                                        item.unit = unit
+                                        item.quantity = quantity
+                                        item.item = Description
+                                        if (nameExistFromObject(
+                                                listOfItems,
+                                                listOfItems[index],
+                                                mutableNameOfList
+                                            )
+                                        ) {
+                                            if (!saving) {
+                                                saving = true
+                                                coroutine.launch {
+                                                    saveDataList(
+                                                        "List",
+                                                        listOfItems,
+                                                        dataStore
+                                                    )
+                                                    saving = false
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onRemove = {
+                                        mutableListOfItems = mutableListOfItems - item
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    item {
                         Column(
                             modifier = Modifier
-                                .padding(5.dp)
-                                .height(50.dp)
+                                .fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            ListItem(item, unitTypes,
-                                onChange = { quantity, Description, unit ->
-                                    item.unit = unit
-                                    item.quantity = quantity
-                                    item.item = Description
-                                    if (!saving) {
-                                        saving = true
-                                        coroutine.launch {
-                                            saveDataList(
-                                                "List",
-                                                listOfItems as SnapshotStateList<ListOfItems>,
-                                                dataStore
-                                            )
-                                            saving = false
-                                        }
-                                    }
-                                },
-                                onRemove = {
-                                    mutableListOfItems = mutableListOfItems - item
-                                }
-                            )
-                        }
-                    }
-                }
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        IconButton(onClick = {
-                            mutableListOfItems = mutableListOfItems + Item("Units", "", "")
-                        }) {
-                            Icon(Icons.Default.Add, contentDescription = "Add New Item")
+                            IconButton(onClick = {
+                                mutableListOfItems = mutableListOfItems + Item("Units", "", "")
+                            }) {
+                                Icon(Icons.Default.Add, contentDescription = "Add New Item")
+                            }
                         }
                     }
                 }

@@ -2,9 +2,11 @@ package com.example.listmaker
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +29,7 @@ import com.example.listmaker.GameUI.HomeUI
 import com.example.listmaker.GameUI.ModifiesList
 import com.example.listmaker.GameUI.ShoppingMode
 import com.example.listmaker.ui.theme.ListMakerTheme
+import kotlinx.coroutines.delay
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "List")
 
@@ -40,33 +43,53 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
                     var listOfItems = remember { mutableStateListOf<ListOfItems>() }
                     val unitTypes = listOf("Unit", "LBS", "OZ", "KG")
                     val selectedIndex = rememberSaveable { mutableIntStateOf(0) }
-                    val shoppingMode = rememberSaveable{ mutableStateOf(false) }
+                    val shoppingMode = rememberSaveable { mutableStateOf(false) }
+                    val navController = rememberNavController()
 
+                    NavHost(navController = navController, startDestination = "LOADING-SCREEN") {
 
+                        composable("LOADING-SCREEN") {
 
-                    NavHost(navController = navController, startDestination = "LOAD-DATA") {
-                        //Call this to load the data first
-                        composable("LOAD-DATA") {
+                            CircularProgressIndicator(modifier = Modifier.fillMaxSize())
+
                             LaunchedEffect(Unit) {
-                                listOfItems = loadDataList("List", dataStore)
-                                selectedIndex.value = loadDataSettings("SELECTED-INDEX",dataStore,0)
-                                shoppingMode.value = loadDataSettings("SHOPPING-MODE",dataStore,false)
-                                if (shoppingMode.value){
-                                    navController.navigate("SHOPPING-MODE")
-                                } else {
-                                    navController.navigate("HOME")
+                                try {
+                                    listOfItems = loadDataList("List", dataStore)
+                                    selectedIndex.intValue = loadDataSettings("SELECTED-INDEX", dataStore, 0)
+                                    shoppingMode.value = loadDataSettings("SHOPPING-MODE", dataStore, false)
+                                    Log.d("Shopping Mode is",shoppingMode.value.toString())
+                                } catch (e: Exception) {
+                                    Log.e("MainActivity", "Error loading data: ${e.message}")
+                                } finally {
+                                    delay(1000)
+                                    if (shoppingMode.value){
+                                        navController.navigate("SHOPPING-MODE")
+                                    } else {
+                                        navController.navigate("HOME")
+                                    }
                                 }
                             }
                         }
                         composable("HOME") {
-                            HomeUI(navController, listOfItems, selectedIndex, dataStore,shoppingMode)
+                            HomeUI(
+                                navController,
+                                listOfItems,
+                                selectedIndex,
+                                dataStore,
+                                shoppingMode
+                            )
                         }
-                        composable("SHOPPING-MODE"){
-                            ShoppingMode(navController,listOfItems,selectedIndex,dataStore,shoppingMode)
+                        composable("SHOPPING-MODE") {
+                            ShoppingMode(
+                                navController,
+                                listOfItems,
+                                selectedIndex,
+                                dataStore,
+                                shoppingMode
+                            )
                         }
                         composable("NEW-LIST") {
                             ModifiesList(
@@ -81,7 +104,7 @@ class MainActivity : ComponentActivity() {
                             ModifiesList(
                                 navController,
                                 listOfItems,
-                                selectedIndex.value,
+                                selectedIndex.intValue,
                                 unitTypes,
                                 dataStore,
                             )

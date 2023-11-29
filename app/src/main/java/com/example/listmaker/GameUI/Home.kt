@@ -47,6 +47,7 @@ import androidx.navigation.NavHostController
 import com.example.listmaker.Data.ListOfItems
 import com.example.listmaker.Data.saveDataList
 import com.example.listmaker.Data.saveDataSettings
+import com.example.listmaker.Model.addNewList
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -69,15 +70,14 @@ fun HomeUI(
         },
         floatingActionButton = {
             ExtendedFloatingButton(
-                "New List",
+                text = "New List",
                 Icons.Default.Add,
                 onClick = {
-                    listOfItems.add(ListOfItems("New List", emptyList()))
+                    listOfItems.add(addNewList(listOfItems))
                     coroutine.launch {
                         saveDataList("List", listOfItems, dataStore)
                         navController.navigate("NEW-LIST")
                     }
-
                 }
             )
         }
@@ -92,18 +92,22 @@ fun HomeUI(
                     .fillMaxSize()
                     .padding(scaffoldPadding)
             ) {
-                items(listOfItems, key = { it.name }) { item ->
+
+
+                items(listOfItems) { item ->
                     Box(
                         modifier = Modifier
                             .animateItemPlacement()
                     ) {
-                        ItemShow(item, listOfItems, selectedIndex, navController, dataStore,shoppingMode)
+                        ItemShow(item, listOfItems, selectedIndex, navController, dataStore,shoppingMode.value)
                     }
                 }
             }
         }
     }
 }
+
+
 
 
 @Composable
@@ -113,7 +117,7 @@ fun ItemShow(
     selectedIndex: MutableState<Int>,
     navController: NavHostController,
     dataStore: DataStore<Preferences>,
-    shoppingMode: MutableState<Boolean>
+    shoppingMode: Boolean
 ) {
     var expand by rememberSaveable { mutableStateOf(false) }
     val numberOfItems = item.items.size
@@ -155,7 +159,7 @@ fun ItemShow(
                     coroutine.launch {
                         selectedIndex.value = listOfItems.indexOf(item)
                         saveDataSettings("SELECTED-INDEX", selectedIndex.value, dataStore)
-                        saveDataSettings("SHOPPING-MODE",shoppingMode.value,dataStore)
+                        saveDataSettings("SHOPPING-MODE",true,dataStore)
                         navController.navigate("SHOPPING-MODE")
                     }
 
